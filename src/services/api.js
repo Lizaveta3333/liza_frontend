@@ -65,6 +65,7 @@ export const ordersAPI = {
   getMy: () => api.get('/orders/my/'),
   getMySales: () => api.get('/orders/my/sales/'),
   update: (id, data) => api.put(`/orders/${id}`, data),
+  updateStatus: (id, status) => api.patch(`/orders/${id}/status?new_status=${status}`),
   delete: (id) => api.delete(`/orders/${id}`),
 }
 

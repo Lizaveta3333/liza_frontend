@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 export default function Home() {
   const { user } = useAuth()
   const [products, setProducts] = useState([])
+  const [allProducts, setAllProducts] = useState([])
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [showProductForm, setShowProductForm] = useState(false)
@@ -18,6 +19,10 @@ export default function Home() {
   })
   const [orderQuantities, setOrderQuantities] = useState({})
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [categories, setCategories] = useState([])
 
   useEffect(() => {
     loadData()
@@ -30,13 +35,43 @@ export default function Home() {
         productsAPI.getAll(),
         user ? ordersAPI.getAll() : Promise.resolve({ data: [] }),
       ])
-      setProducts(productsRes.data)
+      const productsData = productsRes.data
+      setAllProducts(productsData)
+      setProducts(productsData)
+      
+      // Extract unique categories
+      const uniqueCategories = [...new Set(productsData.map(p => p.category))].filter(Boolean)
+      setCategories(uniqueCategories)
+      
       setOrders(ordersRes.data || [])
     } catch (err) {
       console.error('Error loading data:', err)
+      setError('Failed to load data')
     } finally {
       setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    filterProducts()
+  }, [searchTerm, selectedCategory, allProducts])
+
+  const filterProducts = () => {
+    let filtered = [...allProducts]
+    
+    if (selectedCategory) {
+      filtered = filtered.filter(p => p.category === selectedCategory)
+    }
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter(p => 
+        p.title.toLowerCase().includes(term) || 
+        p.description.toLowerCase().includes(term)
+      )
+    }
+    
+    setProducts(filtered)
   }
 
   const handleProductSubmit = async (e) => {
@@ -64,6 +99,8 @@ export default function Home() {
       })
       setShowProductForm(false)
       setError('')
+      setSuccess('Product created successfully!')
+      setTimeout(() => setSuccess(''), 3000)
       loadData()
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create product')
@@ -90,8 +127,9 @@ export default function Home() {
       })
       setOrderQuantities({ ...orderQuantities, [productId]: 1 })
       setError('')
+      setSuccess('Order created successfully!')
+      setTimeout(() => setSuccess(''), 3000)
       loadData()
-      alert('Order created successfully!')
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create order')
     }
@@ -110,19 +148,44 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Products</h1>
-          {user && (
-            <button
-              onClick={() => setShowProductForm(!showProductForm)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+          <div className="flex flex-wrap gap-4 items-center mb-4">
+            {user && (
+              <button
+                onClick={() => setShowProductForm(!showProductForm)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                {showProductForm ? 'Cancel' : 'Create Product'}
+              </button>
+            )}
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             >
-              {showProductForm ? 'Cancel' : 'Create Product'}
-            </button>
-          )}
+              <option value="">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {error && (
           <div className="mb-4 bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">
             {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 bg-green-50 border border-green-400 text-green-700 px-4 py-3 rounded">
+            {success}
           </div>
         )}
 
@@ -206,8 +269,13 @@ export default function Home() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {products.map((product) => (
+        {products.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+            No products found
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {products.map((product) => (
             <div key={product.id} className="bg-white rounded-lg shadow p-6">
               <h3 className="text-xl font-semibold mb-2">{product.title}</h3>
               <p className="text-gray-600 mb-4">{product.description}</p>
@@ -244,7 +312,8 @@ export default function Home() {
               )}
             </div>
           ))}
-        </div>
+          </div>
+        )}
 
         {user && orders.length > 0 && (
           <div className="mt-8">
