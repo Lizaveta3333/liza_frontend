@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3001,
     proxy: {
       '/api': {
-        target: 'https://liza-backend-app.onrender.com/',
+        target: 'https://liza-backend.onrender.com/',
         changeOrigin: true,
       }
     }
